@@ -1,10 +1,6 @@
-import { resolve } from 'path';
-import { config } from 'dotenv';
-
-config({ path: resolve(__dirname, '../../.env') });
+import * as functions from 'firebase-functions';
 
 interface IEnv {
-	location: string;
 	mailjetPublicKey: string;
 	mailjetSecretKey: string;
 	mailjetDefaultSender: string;
@@ -13,10 +9,9 @@ interface IEnv {
 }
 
 export default {
-	location: process.env.LOCATION,
-	mailjetPublicKey: process.env.MAILJET_PUBLIC_KEY,
-	mailjetSecretKey: process.env.MAILJET_SECRET_KEY,
-	mailjetDefaultSender: process.env.MAILJET_DEFAULT_SENDER,
-	mailjetTemplateId: process.env.MAILJET_TEMPLATE_ID,
-	mailjetSenderName: process.env.MAILJET_SENDER_NAME
+	mailjetPublicKey: functions.config().mailjet.public_key,
+	mailjetSecretKey: functions.config().mailjet.secret_key,
+	mailjetDefaultSender: functions.config().mailjet.default_sender,
+	mailjetTemplateId: functions.config().mailjet.template_id,
+	mailjetSenderName: functions.config().mailjet.sender_name
 } as IEnv;
