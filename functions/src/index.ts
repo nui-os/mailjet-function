@@ -2,39 +2,29 @@ import config from './config';
 import * as functions from 'firebase-functions';
 import * as mailjet from 'node-mailjet';
 
-console.log(`reloaded ${config.location} environment`);
 let jet: mailjet.Email.Client;
 try {
 	jet = mailjet.connect(config.mailjetPublicKey, config.mailjetSecretKey);
 } catch (error) {
-	console.error('failed to initialize: ', error);
+	console.error('failed to initialize mailjet due to: ', error);
 }
 
-/* 
-    TODO: Add Authentication Middleware
-    https://firebase.google.com/docs/functions/
-    https://firebase.google.com/docs/functions/typescript
-*/
-export const sendMail = functions.https.onRequest(async (request, response) => {
-	if (
-		!request.body ||
-		!request.body.recipient ||
-		!request.body.recipientName
-	) {
-		response.send('missing parameter');
-	} else {
-		try {
-			const result = await callMailjet(
-				parseInt(config.mailjetTemplateId),
-				request.body.recipient,
-				request.body.recipientName
-			);
-			console.log('good!', result);
-			response.send('Hello from Firebase!');
-		} catch (error) {
-			console.error('failed to send mail', error);
-			response.send('ouups');
+export const sendMail = functions.auth.user().onCreate(async user => {
+	try {
+		if (!user.email) {
+			throw new Error('user does not have an email');
 		}
+		const response: mailjet.Email.Response = await callMailjet(
+			parseInt(config.mailjetTemplateId),
+			user.email,
+			user.displayName || ''
+		);
+		const { Messages } = response.body as any;
+		if (Messages[0]) {
+			console.info('Mail delivery status: ', Messages[0].Status);
+		}
+	} catch (error) {
+		console.error('failed to send mail due to', error);
 	}
 });
 
@@ -59,18 +49,10 @@ const callMailjet = async (
 				TemplateID: templateId,
 				TemplateLanguage: true,
 				Variables: {
-					A: 'false',
-					B: 'true'
+					recipientName: recipientName ? recipientName : null
 				}
 			}
 		]
 	};
-	try {
-		const results: mailjet.Email.Response = await jet
-			.post('send', { version: 'v3.1' })
-			.request(payload);
-		return Promise.resolve(results);
-	} catch (error) {
-		return Promise.reject(error);
-	}
+	return jet.post('send', { version: 'v3.1' }).request(payload);
 };
